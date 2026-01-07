@@ -13,6 +13,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Validate required environment variables
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_KEY', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  console.error('Please create a .env file with the required variables.');
+  process.exit(1);
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -33,7 +43,7 @@ paypal.configure({
   client_secret: process.env.PAYPAL_CLIENT_SECRET,
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // ========== UTILITY FUNCTIONS ==========
 
@@ -52,10 +62,10 @@ const verifyToken = (token) => {
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
-  
+
   const decoded = verifyToken(token);
   if (!decoded) return res.status(401).json({ error: 'Invalid token' });
-  
+
   req.user = decoded;
   next();
 };
@@ -562,13 +572,30 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
   }
 });
 
+// ========== ERROR HANDLING MIDDLEWARE ==========
+
+// Global error handler
+app.use((err, _req, res, _next) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+  });
+});
+
+// 404 handler
+app.use((_req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
 // ========== HEALTH CHECK ==========
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`✅ All required environment variables are set`);
 });
