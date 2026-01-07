@@ -18,7 +18,7 @@ export default function DriverDashboard() {
     if (userType !== 'driver') {
       router.push('/login');
     }
-  }, [userType]);
+  }, [userType, router]);
 
   if (userType !== 'driver') {
     return null;
